@@ -1,112 +1,233 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { db } from "@/constants/firebaseConfig";
+import { useRouter } from "expo-router";
+import { getAuth } from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  where
+} from "firebase/firestore";
+import { Heart, Share2 } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Share as NativeShare,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context"; // ✅ the right import
+import { t } from "react-native-tailwindcss";
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
 
-export default function TabTwoScreen() {
+
+export default function Explore() {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [wishlist, setWishlist] = useState<string[]>([]);
+  const router = useRouter();
+
+  const auth = getAuth();
+  const user = auth.currentUser;
+  const heartScale = useSharedValue(1);
+
+  const animateHeart = () => {
+    heartScale.value = 0.8;
+    heartScale.value = withSpring(1.2, {}, () => {
+      heartScale.value = withSpring(1);
+    });
+  };
+
+  const heartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+  }));
+
+  const openShareMenu = async (item: any) => {
+    const message = `Check out this amazing product on AfriCart!\n\n${item.title} - $${item.price}\n\n${item.imageUrl}`;
+    try {
+      await NativeShare.share({ message });
+    } catch (error) {
+      console.error("Error sharing:", error)
+    }
+  }
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "products"));
+        const items: any[] = [];
+        querySnapshot.forEach((doc) => {
+          items.push({ id: doc.id, ...doc.data() });
+        });
+        setProducts(items);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchWishlist = async () => {
+      try {
+        const favRef = collection(db, "favorites");
+        const q = query(favRef, where("userId", "==", user.uid));
+
+        const snap = await getDocs(q);
+        const ids = snap.docs.map(doc => doc.data().productId);
+
+        setWishlist(ids);
+      } catch (err) {
+        console.error("🔥 Error loading wishlist:", err);
+      }
+    };
+
+    fetchWishlist();
+  }, [user]);
+
+
+  const toggleWishlist = async (productId: string) => {
+    if (!user) return; // prevent crashes
+
+    try {
+      const favRef = collection(db, "favorites");
+
+      //check if exists
+      const q = query(
+        favRef,
+        where("userId", "==", user.uid),
+        where("productId", "==", productId)
+      );
+
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        // remove
+        await deleteDoc(doc(db, "favorites", snap.docs[0].id));
+        setWishlist(prev => prev.filter(id => id !== productId));
+      } else {
+        // add
+        await addDoc(favRef, {
+          userId: user.uid,
+          productId,
+          createdAt: new Date(),
+        });
+        setWishlist(prev => [...prev, productId]);
+      }      
+    } catch (err) {
+      console.error("🔥 toggleWishlist error:", err)
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, t.bgWhite]}>
+        <ActivityIndicator size="large" color="black" />
+        <Text style={[t.textGray700, t.mT3]}>Loading amazing art...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter]} edges={["top"]}>
+      <Text style={[t.text2xl, t.fontBold, t.m4]}>Explore Products</Text>
+
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }} // space above nav
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => router.push(`/product/${item.id}`)}>
+            <View
+              style={[
+                t.bgGray100,
+                t.roundedLg,
+                t.mB6,
+                t.shadow,
+                { overflow: "hidden" },
+              ]}
+            >
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={{ width: "100%", height: 300 }}
+                resizeMode="cover"
+              />
+
+              
+
+              <View style={[t.p4]}>
+                <Text style={[t.fontBold, t.textLg]}>{item.title}</Text>
+
+                {item.description ? (
+                  <Text style={[t.textGray700, t.textSm, t.mT1]}>
+                    {item.description}
+                  </Text>
+                ) : (
+                  <Text style={[t.textGray500, t.textXs, t.mT1]}>
+                    No description available
+                  </Text>
+                )}
+
+                <View
+                  style={[
+                    t.flexRow,
+                    t.justifyBetween,
+                    t.itemsCenter,
+                    t.mT3,
+                    t.borderT,
+                    t.borderGray300,
+                    t.pT2,
+                  ]}
+                >
+                  {/* Left: Price */}
+                  <Text style={[t.textBlack, t.fontSemibold]}>
+                    ${item.price?.toFixed ? item.price.toFixed(2) : item.price}
+                  </Text>
+
+                  {/* Right: Wishlist + Share */}
+                  <View style={[t.flexRow, t.itemsCenter]}>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        animateHeart();
+                        toggleWishlist(item.id);
+                      }} 
+                      style={[t.mR3]}
+                    >
+                      <Animated.View style={heartStyle}>
+                      <Heart
+                        size={22}
+                        color={wishlist.includes(item.id) ? "red" : "gray"}
+                        fill={wishlist.includes(item.id) ? "red" : "none"}
+                      />
+                      </Animated.View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => openShareMenu(item)}>
+                      <Share2 size={22} color="gray" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-});

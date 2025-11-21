@@ -1,98 +1,134 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  ImageBackground,
+} from "react-native";
+import { t } from "react-native-tailwindcss";
+import { Link, useRouter } from "expo-router";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "@/constants/firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function Index() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-export default function HomeScreen() {
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists() && userDoc.data().role === "admin") {
+          setIsAdmin(true);
+        }
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[t.flex1, t.justifyCenter, t.itemsCenter, t.bgWhite]}>
+        <ActivityIndicator size="large" color="black" />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <SafeAreaView style={[t.flex1 ]} edges={["top"]}>
+      <ImageBackground
+        source={require("../../assets/images/africart-bg.jpg")} // ← Add your image here
+        style={[t.flex1, t.justifyCenter, t.itemsCenter]}
+        resizeMode="cover"
+      >
+        {/* Overlay for text visibility */}
+        <View
+          style={[
+            t.absolute,
+            t.inset0,
+            { backgroundColor: "rgba(0, 0, 0, 0.5)" },
+          ]}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* Content */}
+        <View style={[t.z10, t.pX8, t.itemsCenter]}>
+          <Text
+            style={[
+              t.text3xl,
+              t.fontBold,
+              t.mB4,
+              t.textCenter,
+              { color: "white", textShadowColor: "rgba(0,0,0,0.3)", textShadowRadius: 4 },
+            ]}
+          >
+            Welcome to AfriCart
+          </Text>
+
+          <Text
+            style={[
+              t.textBase,
+              t.textCenter,
+              t.mB8,
+              { color: "white", opacity: 0.9 },
+            ]}
+          >
+            Discover authentic African art, jewelry, and handmade crafts from
+            talented artisans across the continent.
+          </Text>
+
+          {user ? (
+            <>
+              <TouchableOpacity
+                onPress={() => router.push("/explore")}
+                style={[
+                  t.bgGray500,
+                  t.pY3,
+                  t.pX6,
+                  t.roundedLg,
+                  t.mB4,
+                  t.shadowMd,
+                  t.flexRow,
+                  t.itemsCenter,
+                  t.justifyCenter,
+                  t.opacity75
+                ]}
+              >
+                <Text style={[t.textBlack, t.textLg, t.fontMedium]}>
+                  Explore Products
+                  
+                </Text>
+              </TouchableOpacity>
+
+
+              {isAdmin && (
+                <TouchableOpacity
+                  onPress={() => router.push("/admin/manage-orders")}
+                  style={[t.bgGreen600, t.pY3, t.pX6, t.roundedLg, t.mB4]}
+                >
+                  <Text style={[t.textWhite, t.textCenter]}>
+                    Go to Admin Panel
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <Link href="/auth/login" asChild>
+              <TouchableOpacity
+                style={[t.bgWhite, t.pY3, t.pX6, t.roundedLg, t.shadowMd]}
+              >
+                <Text style={[t.textBlack, t.fontMedium]}>Get Started</Text>
+              </TouchableOpacity>
+            </Link>
+          )}
+        </View>
+      </ImageBackground>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});

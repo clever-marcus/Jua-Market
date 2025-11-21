@@ -1,24 +1,51 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import { Stack, useRouter } from "expo-router";
+import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
+import Toast from "react-native-toast-message";
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+// Import STRIPE
+import { StripeProvider } from "@stripe/stripe-react-native";
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+function MainLayout() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    if (!loading) {
+      if (!user) router.replace("/auth/login");
+      else router.replace("/(tabs)");
+    }
+  }, [user, loading]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="black" />
+      </View>
+    );
+  }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="auth/register" options={{ presentation: "modal" }} />
+      <Stack.Screen name="auth/login" options={{ presentation: "modal" }} />
+    
+    {/* payment routes */}
+    <Stack.Screen name="card-payment" />
+    <Stack.Screen name="order-success" />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <StripeProvider publishableKey={process.env.STRIPE_PUBLISHABLE_KEY!}>
+      <AuthProvider>
+        <MainLayout />
+        <Toast />
+      </AuthProvider>
+    </StripeProvider>
   );
 }
