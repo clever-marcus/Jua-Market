@@ -12,7 +12,7 @@ import {
   updateDoc
 } from "firebase/firestore";
 import { ArrowLeft, ChevronDown } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -31,7 +31,38 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { t } from "react-native-tailwindcss";
 import Toast from "react-native-toast-message";
 
+import { ThemeContext } from "../context/ThemeContext";
 
+
+// dynamic colors structure
+const getColors = (isDark: boolean) => ({
+    // Screen / Container Colors
+    bgScreen: isDark ? t.bgGray900 : t.bgWhite,
+    bgCard: isDark ? t.bgGray800 : t.bgWhite,
+    bgItem: isDark ? t.bgGray800 : t.bgGray100,
+    bgModal: isDark ? t.bgGray800 : t.bgWhite,
+    
+    // Text Colors
+    textPrimary: isDark ? t.textWhite : t.textBlack,
+    textSecondary: isDark ? t.textGray400 : t.textGray600,
+    textDisabled: isDark ? t.textGray500 : t.textGray700,
+    
+    // Border / Input Colors
+    border: isDark ? t.borderGray700 : t.borderGray300,
+    borderDark: isDark ? t.borderGray600 : t.borderBlack,
+    bgInput: isDark ? t.bgGray700 : t.bgWhite,
+    textInput: isDark ? t.textWhite : t.textBlack,
+
+    // Action Colors
+    blueAction: t.bgBlue500, // Keep blue button
+    blueActionText: t.textWhite,
+    bgCancel: isDark ? t.bgGray700 : t.bgGray200,
+    bgConfirm: t.bgBlack, // Keep black button
+
+    // 🚨 Log Out/Confirm Button Text Color 
+    btnLogoutBg: isDark ? t.bgRed700 : t.bgBlack, 
+    btnLogoutText: t.textWhite, // Always white text
+});
 
 
 type CartItem = {
@@ -63,7 +94,8 @@ const AddressCard: React.FC<{
   onSelect: (a: Address) => void;
   onEdit: (a: Address) => void;
   onDelete: (id: string) => void;
-}> = ({ address, selected, onSelect, onEdit, onDelete }) => {
+  colors: ReturnType<typeof getColors>;
+}> = ({ address, selected, onSelect, onEdit, onDelete, colors }) => {
   return (
     <TouchableOpacity
       onPress={() => onSelect(address)}
@@ -73,21 +105,21 @@ const AddressCard: React.FC<{
         t.roundedLg,
         t.shadow,
         selected ? t.border2 : t.border,
-        selected ? t.borderBlue500 : t.borderGray300,
-        t.bgWhite,
+        selected ? t.borderBlue500 : colors.border,
+        colors.bgCard,
       ]}
     >
-      <Text style={[t.fontBold]}>{address.name}</Text>
-      <Text>{address.address}</Text>
-      <Text>{address.city}, {address.country}</Text>
-      <Text>{address.phone}</Text>
+      <Text style={[t.fontBold, colors.textPrimary]}>{address.name}</Text>
+      <Text style={[colors.textSecondary]}>{address.address}</Text>
+      <Text style={[colors.textSecondary]}>{address.city}, {address.country}</Text>
+      <Text style={[colors.textSecondary]}>{address.phone}</Text>
 
       <View style={[t.flexRow, t.mT2]}>
         <TouchableOpacity onPress={() => onEdit(address)} style={[t.mR4]}>
           <Text style={[t.textBlue500]}>Edit</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => onDelete(address.id)}>
-          <Text style={[t.textGray600]}>Delete</Text>
+          <Text style={[colors.textSecondary]}>Delete</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -97,7 +129,8 @@ const AddressCard: React.FC<{
 const PaymentSelector: React.FC<{
   selected: PaymentMethod;
   onSelect: (m: PaymentMethod) => void;
-}> = ({ selected, onSelect }) => {
+  colors: ReturnType<typeof getColors>;
+}> = ({ selected, onSelect, colors }) => {
   return (
     <View style={[t.flexRow, t.mB4]}>
       {(["visa", "mpesa"] as PaymentMethod[]).map((method) => (
@@ -109,10 +142,10 @@ const PaymentSelector: React.FC<{
             t.p4,
             t.mR2,
             t.roundedLg,
-            selected === method ? t.bgBlack : t.bgGray200,
+            selected === method ? colors.bgConfirm : colors.bgCancel,
           ]}
         >
-          <Text style={[selected === method ? t.textWhite : t.textBlack, t.textCenter]}>
+          <Text style={[selected === method ? colors.btnLogoutText : colors.textPrimary, t.textCenter]}>
             {method.toUpperCase()}
           </Text>
         </TouchableOpacity>
@@ -130,7 +163,8 @@ const AddressFormModal: React.FC<{
   onClose: () => void;
   onSave: (addr: Omit<Address, "id">, maybeId?: string) => Promise<void>;
   initial?: Address | null;
-}> = ({ visible, onClose, onSave, initial = null }) => {
+  colors: ReturnType<typeof getColors>; // Parsing in color props
+}> = ({ visible, onClose, onSave, initial = null, colors }) => {
   const [name, setName] = useState(initial?.name || "");
   const [address, setAddress] = useState(initial?.address || "");
   const [city, setCity] = useState(initial?.city || "");
@@ -179,12 +213,18 @@ const AddressFormModal: React.FC<{
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[t.flex1, t.justifyEnd]}>
-        <View style={[t.bgWhite, t.p6, t.roundedTl, { maxHeight: "90%" }]}>
-          <Text style={[t.textXl, t.fontBold, t.mB4]}>{initial ? "Edit Address" : "Add Address"}</Text>
+        <View style={[colors.bgModal, t.p6, t.roundedTl, { maxHeight: "90%" }]}>
+          <Text style={[t.textXl, t.fontBold, t.mB4, colors.textPrimary]}>{initial ? "Edit Address" : "Add Address"}</Text>
 
           <ScrollView>
-            <Text style={[t.mB1]}>Name</Text>
-            <TextInput value={name} onChangeText={setName} style={[t.border, t.p2, t.mB3, t.rounded]} />
+            <Text style={[t.mB1, colors.textPrimary]}>Name</Text>
+            <TextInput value={name} onChangeText={setName} 
+              style={[
+                colors.border, t.border, t.p2, t.mB3, t.rounded,
+                colors.bgInput, colors.textInput
+              ]} 
+              placeholderTextColor={colors.textSecondary.color}
+              />
 
             <Text style={[t.mB1]}>Address</Text>
             <TextInput value={address} onChangeText={setAddress} style={[t.border, t.p2, t.mB3, t.rounded]} />
@@ -196,7 +236,7 @@ const AddressFormModal: React.FC<{
             {/* --Country Picker Component */}
             <TouchableOpacity
             onPress={() => setShowPicker(true)}
-            style={[t.border, t.p2, t.mB3, t.rounded, t.flexRow, t.itemsCenter, t.justifyBetween]}
+            style={[colors.border, t.border, t.p2, t.mB3, t.rounded, t.flexRow, t.itemsCenter, t.justifyBetween]}
             >
               <View style={[t.flexRow, t.itemsCenter]}>
               {/* Display the selected flag and country name */}
@@ -206,11 +246,11 @@ const AddressFormModal: React.FC<{
                 visible={false} // Hidden main picker
                 renderFlagButton={() => null}
               />
-              <Text style={[t.mL2, country ? {} : t.textGray500]}>
+              <Text style={[t.mL2, country ? colors.textPrimary : colors.textSecondary]}>
                 {country || 'Select Country'}
               </Text>
               </View>
-              <ChevronDown size={20} color={country ? "black" : "gray"}/>
+              <ChevronDown size={20} color={country ? colors.textPrimary.color : colors.textSecondary.color}/>
             </TouchableOpacity>
 
             <CountryPicker
@@ -236,15 +276,25 @@ const AddressFormModal: React.FC<{
             />
             {/* --- End Country Picker Component --- */}
            
-            <Text style={[t.mB1]}>Phone</Text>
-            <TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={[t.border, t.p2, t.mB3, t.rounded]} />
+            <Text style={[t.mB1, colors.textPrimary]}>Phone</Text>
+            <TextInput 
+              value={phone} 
+              onChangeText={setPhone} 
+              keyboardType="phone-pad" 
+              style={[
+                colors.border, t.border, 
+                t.p2, t.mB3, 
+                t.rounded, colors.bgInput, colors.textInput
+              ]} 
+              placeholderTextColor={colors.textSecondary.color}  
+            />
           </ScrollView>
 
           <View style={[t.flexRow, t.mT4]}>
-            <TouchableOpacity onPress={onClose} style={[t.flex1, t.pY3, t.roundedLg, t.mR2, t.bgGray200]}>
-              <Text style={[t.textCenter]}>Cancel</Text>
+            <TouchableOpacity onPress={onClose} style={[t.flex1, t.pY3, t.roundedLg, t.mR2, colors.bgCancel]}>
+              <Text style={[t.textCenter, colors.textPrimary]}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleSave} style={[t.flex1, t.pY3, t.roundedLg, t.bgBlack, t.itemsCenter]}>
+            <TouchableOpacity onPress={handleSave} style={[t.flex1, t.pY3, t.roundedLg, colors.bgConfirm, t.itemsCenter]}>
               {saving ? <ActivityIndicator color="white" /> : <Text style={[t.textWhite]}>Save</Text>}
             </TouchableOpacity>
           </View>
@@ -254,6 +304,13 @@ const AddressFormModal: React.FC<{
   );
 };
 
+ // currency conversion
+  const USD_TO_KES = 135; // to update manually every few months
+
+  export const convertToKES = (usdAmount: number) => {
+    return Math.round(usdAmount * USD_TO_KES);
+  }
+
 /* ---------------------------
    CheckoutPage (main)
    --------------------------- */
@@ -261,6 +318,12 @@ const AddressFormModal: React.FC<{
 export default function CheckoutPage() {
   const router = useRouter();
   const auth = getAuth();
+  // consume Context
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === "dark";
+  const colors = getColors(isDark); // 🚨 Initialize dynamic colors
+
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
@@ -346,12 +409,15 @@ export default function CheckoutPage() {
 
   
 
-  const handleMpesa = async (orderId: string, amount: number) => {
+  const handleMpesa = async (orderId: string, totalUSD: number) => {
     if (!mpesaPhone) return alert("Enter MPesa phone number.");
+
+    const totalKES = convertToKES(totalUSD);
+    
 
     try {
       // 1. Make the request
-      const res = await fetch("https://e3d248888bcb.ngrok-free.app/mpesa/stkpush", {
+      const res = await fetch("https://b117b2e95e46.ngrok-free.app/mpesa/stkpush", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -360,7 +426,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           orderId,
           phone: mpesaPhone,
-          amount,
+          amount: totalKES,
         }),
       });
 
@@ -401,7 +467,7 @@ export default function CheckoutPage() {
 
 const handleStripe = async (orderId: string, amount: number) => {
   try {
-    const res = await fetch("https://e3d248888bcb.ngrok-free.app/stripe/create-intent", {
+    const res = await fetch("https://b117b2e95e46.ngrok-free.app/stripe/create-intent", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -464,17 +530,17 @@ const handleStripe = async (orderId: string, amount: number) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, t.bgWhite]}>
-        <ActivityIndicator size="large" color="black" />
-        <Text style={[t.textGray700, t.mT3]}>Loading your checkout...</Text>
+      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, colors.bgScreen]}>
+        <ActivityIndicator size="large" color={colors.textPrimary.color} />
+        <Text style={[colors.textDisabled, t.mT3]}>Loading your checkout...</Text>
       </SafeAreaView>
     );
   }
 
   if (cartItems.length === 0) {
     return (
-      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, t.bgWhite]}>
-        <Text style={[t.textGray700]}>Your cart is empty 🛒</Text>
+      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, colors.bgScreen]}>
+        <Text style={[colors.textDisabled]}>Your cart is empty 🛒</Text>
       </SafeAreaView>
     );
   }
@@ -483,37 +549,37 @@ const handleStripe = async (orderId: string, amount: number) => {
 
   return (
     <ProtectedRoute>
-      <SafeAreaView style={[t.flex1, t.bgWhite]}>
+      <SafeAreaView style={[t.flex1, colors.bgScreen]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={[t.absolute, { top: 40, left: 20 }, t.z10, t.p2, t.bgTransparent, t.roundedFull, t.shadow]}
         >
-          <ArrowLeft size={22} color="black" />
+          <ArrowLeft size={22} color={colors.textPrimary.color} />
         </TouchableOpacity>
 
         <ScrollView contentContainerStyle={[t.p6, { paddingBottom: 140 }]} showsVerticalScrollIndicator={false}>
-          <Text style={[t.text3xl, t.fontBold, t.mB6, t.textCenter]}>Checkout 🛒</Text>
+          <Text style={[t.text3xl, t.fontBold, t.mB6, t.textCenter, colors.textPrimary]}>Checkout 🛒</Text>
 
           {/* Cart Items */}
           {cartItems.map((item) => (
             <View
               key={item.id}
-              style={[t.flexRow, t.itemsCenter, t.justifyBetween, t.mB4, t.bgGray100, t.roundedLg, t.p3]}
+              style={[t.flexRow, t.itemsCenter, t.justifyBetween, t.mB4, colors.bgItem, t.roundedLg, t.p3]}
             >
               <Image source={{ uri: item.imageUrl }} style={{ width: 60, height: 60, borderRadius: 8 }} />
               <View style={[t.flex1, t.mL3]}>
-                <Text style={[t.fontSemibold, t.textBase]}>{item.title}</Text>
-                <Text style={[t.textGray600]}>{item.quantity} × ${item.price.toFixed(2)}</Text>
+                <Text style={[t.fontSemibold, t.textBase, colors.textPrimary]}>{item.title}</Text>
+                <Text style={[colors.textSecondary]}>{item.quantity} × ${item.price.toFixed(2)}</Text>
               </View>
-              <Text style={[t.fontBold]}>${(item.price * item.quantity).toFixed(2)}</Text>
+              <Text style={[t.fontBold, colors.textPrimary]}>${(item.price * item.quantity).toFixed(2)}</Text>
             </View>
           ))}
 
           {/* Addresses */}
           <View style={[t.mT6]}>
-            <Text style={[t.textGray700, t.mB2, t.textBase]}>Shipping Address</Text>
+            <Text style={[colors.textDisabled, t.mB2, t.textBase]}>Shipping Address</Text>
 
-            {addresses.length === 0 && <Text style={[t.mB4]}>No saved addresses. Add one below.</Text>}
+            {addresses.length === 0 && <Text style={[t.mB4, colors.textSecondary]}>No saved addresses. Add one below.</Text>}
 
             {addresses.map((addr) => (
               <View key={addr.id}>
@@ -526,42 +592,51 @@ const handleStripe = async (orderId: string, amount: number) => {
                     setModalVisible(true);
                   }}
                   onDelete={handleDeleteAddress}
+                  colors={colors}
                 />
                 
               </View>
             ))}
 
             <TouchableOpacity
-              style={[t.bgGreen500, t.pY2, t.pX4, t.roundedLg, t.itemsCenter]}
+              style={[colors.blueAction, t.pY2, t.pX4, t.roundedLg, t.itemsCenter]}
               onPress={() => {
                 setEditingAddress(null);
                 setModalVisible(true);
               }}
             >
-              <Text style={[t.textWhite, t.textCenter]}>Add New Address</Text>
+              <Text style={[colors.blueActionText, t.textCenter]}>Add New Address</Text>
             </TouchableOpacity>
 
             {/* Delivery Estimate */}
             {selectedAddress && (
-              <Text style={[t.mT2, t.textGray600]}>Estimated delivery: 3–5 business days 🚚</Text>
+              <Text style={[t.mT2, colors.textSecondary]}>Estimated delivery: 3–5 business days 🚚</Text>
             )}
           </View>
 
           {/* Payment Method */}
           <View style={[t.mT6]}>
-            <Text style={[t.textGray700, t.mB2]}>Payment Method</Text>
-            <PaymentSelector selected={paymentMethod} onSelect={setPaymentMethod} />
+            <Text style={[colors.textDisabled, t.mB2]}>Payment Method</Text>
+            <PaymentSelector selected={paymentMethod} onSelect={setPaymentMethod} colors={colors} />
 
             {/* optional: show extra input when mpesa selected */}
             {paymentMethod === "mpesa" && (
               <View style={[t.mT2]}>
-                <Text style={[t.textGray700, t.mB1]}>MPesa Phone Number</Text>
+                <Text style={[colors.textDisabled, t.mB1]}>MPesa Phone Number</Text>
+                <Image 
+                  source={require('@/assets/images/mpesa.jpg')}
+                  style={{ width: 120, height: 30, marginRight: 10 }}
+                />
                   <TextInput
                     keyboardType="phone-pad"
                     placeholder="2547XXXXXXXX"
                     value={mpesaPhone}
                     onChangeText={setMpesaPhone}
-                    style={[t.border, t.rounded, t.p2]}
+                    style={[
+                      colors.border, colors.textInput,
+                      t.border, t.rounded, 
+                      t.p2, colors.bgInput]}
+                      placeholderTextColor={colors.textSecondary.color}
                   />
               </View>
             )}
@@ -569,17 +644,20 @@ const handleStripe = async (orderId: string, amount: number) => {
             {/* Visa extra info */}
             {paymentMethod === "visa" && (
               <View>
-                
-                <Text style={[t.textGray600]}>
+                <Text style={[colors.textSecondary]}>
                   Card payment will open securely after confirming your order.
                 </Text>
+                <Image 
+                  source={require('@/assets/images/abroad-pay.jpg')}
+                  style={{ width: 180, height: 60, marginRight: 10 }}
+                />
               </View>
             )}
           </View>
 
           {/* Total */}
-          <View style={[t.mT8, t.borderT, t.borderGray300, t.pT4]}>
-            <Text style={[t.textXl, t.fontBold]}>
+          <View style={[t.mT8, colors.border, t.borderT, t.borderGray300, t.pT4]}>
+            <Text style={[t.textXl, t.fontBold, colors.textPrimary]}>
               Total: ${cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
             </Text>
           </View>
@@ -588,7 +666,7 @@ const handleStripe = async (orderId: string, amount: number) => {
         {/* Confirm Button */}
         <View style={[t.absolute, { bottom: 40 }, t.left0, t.right0, t.itemsCenter]}>
           <TouchableOpacity
-            style={[t.bgBlack, t.roundedLg, t.pY3, t.w11_12, t.justifyCenter, t.itemsCenter, t.shadow]}
+            style={[colors.bgConfirm, t.roundedLg, t.pY3, t.w11_12, t.justifyCenter, t.itemsCenter, t.shadow]}
             onPress={handleConfirmOrder}
           >
             <Text style={[t.textWhite, t.textLg, t.fontSemibold]}>Confirm Order</Text>
@@ -606,6 +684,7 @@ const handleStripe = async (orderId: string, amount: number) => {
           onSave={async (addr, maybeId) => {
             await handleSaveAddress(addr, maybeId);
           }}
+          colors={colors}
         />
       </SafeAreaView>
     </ProtectedRoute>

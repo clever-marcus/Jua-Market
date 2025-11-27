@@ -1,19 +1,20 @@
-import React, { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import { collection, deleteDoc, doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { Minus, Plus, Trash2 } from "lucide-react-native";
+import React, { useContext, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  SafeAreaView,
+  ActivityIndicator,
   FlatList,
   Image,
+  SafeAreaView,
+  Text,
   TouchableOpacity,
-  ActivityIndicator,
+  View,
 } from "react-native";
-import { collection, onSnapshot, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { db } from "../../constants/firebaseConfig";
-import { useAuth } from "../../hooks/useAuth";
-import { Trash2, Plus, Minus } from "lucide-react-native";
 import Toast from "react-native-toast-message";
-import { useRouter } from "expo-router";
+import { db } from "../../constants/firebaseConfig";
+import { ThemeContext } from "../../context/ThemeContext";
+import { useAuth } from "../../hooks/useAuth";
 
 type CartItem = {
   id: string;
@@ -29,6 +30,20 @@ export default function CartScreen() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Theme Context
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === 'dark'
+
+  // Defining my colors based on the current theme
+  const colors = {
+    background: isDark ? "#121212" : "#fff",
+    cardBackground: isDark ? "#1f1f1f" : "#f9f9f9",
+    text: isDark ? "#fff" : "#000",
+    secondaryText: isDark ? "#ccc" : "#444",
+    totalBorder: isDark ? "#333" : "#ddd",
+    button: isDark ? "#696969" : "black", // Example: green button for dark mode
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -87,7 +102,7 @@ export default function CartScreen() {
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="black" />
+        <ActivityIndicator size="large" color={colors.text} />
         <Text>Loading your cart...</Text>
       </SafeAreaView>
     );
@@ -95,8 +110,13 @@ export default function CartScreen() {
 
   if (cartItems.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Your cart is empty 🛒</Text>
+      <SafeAreaView style={{ 
+        flex: 1, 
+        justifyContent: "center", 
+        alignItems: "center", 
+        backgroundColor: colors.background,  
+        }}>
+        <Text style={{ color: colors.text }}>Your cart is empty 🛒</Text>
       </SafeAreaView>
     );
   }
@@ -107,8 +127,8 @@ export default function CartScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff", padding: 16 }}>
-      <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 16 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, padding: 16 }}>
+      <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 16, textAlign: "center", color: colors.text }}>
         🛍️ Your Cart
       </Text>
 
@@ -122,7 +142,7 @@ export default function CartScreen() {
               flexDirection: "row",
               alignItems: "center",
               marginBottom: 12,
-              backgroundColor: "#f9f9f9",
+              backgroundColor: colors.cardBackground,
               borderRadius: 10,
               padding: 10,
             }}
@@ -132,8 +152,8 @@ export default function CartScreen() {
               style={{ width: 70, height: 70, borderRadius: 10 }}
             />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={{ fontWeight: "600", fontSize: 16 }}>{item.title}</Text>
-              <Text>${item.price.toFixed(2)}</Text>
+              <Text style={{ fontWeight: "600", fontSize: 16, color: colors.text }}>{item.title}</Text>
+              <Text style={{ color: colors.secondaryText }}>${item.price.toFixed(2)}</Text>
 
               {/* Quantity Control */}
               <View
@@ -146,28 +166,28 @@ export default function CartScreen() {
               >
                 <TouchableOpacity
                   style={{
-                    backgroundColor: "#eee",
+                    backgroundColor: isDark ? "#333" : "#eee",
                     borderRadius: 8,
                     padding: 4,
                   }}
                   onPress={() => handleQuantityChange(item.id, item.quantity - 1)}
                 >
-                  <Minus size={18} color="black" />
+                  <Minus size={18} color={colors.text} />
                 </TouchableOpacity>
 
-                <Text style={{ fontSize: 16, fontWeight: "bold" }}>
+                <Text style={{ fontSize: 16, fontWeight: "bold", color: colors.text }}>
                   {item.quantity}
                 </Text>
 
                 <TouchableOpacity
                   style={{
-                    backgroundColor: "#eee",
+                    backgroundColor: isDark ? "#333" : "#eee",
                     borderRadius: 8,
                     padding: 4,
                   }}
                   onPress={() => handleQuantityChange(item.id, item.quantity + 1)}
                 >
-                  <Plus size={18} color="black" />
+                  <Plus size={18} color={colors.text} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -187,19 +207,19 @@ export default function CartScreen() {
           left: 16,
           right: 16,
           borderTopWidth: 1,
-          borderColor: "#ddd",
+          borderColor: colors.totalBorder,
           paddingTop: 12,
-          backgroundColor: "#fff",
+          backgroundColor: colors.background,
         }}
       >
-        <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
+        <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10, color: colors.text }}>
           Total: ${total.toFixed(2)}
         </Text>
 
         <TouchableOpacity
           onPress={() => router.push("/checkout")}
           style={{
-            backgroundColor: "black",
+            backgroundColor: colors.button,
             paddingVertical: 14,
             borderRadius: 10,
             alignItems: "center",

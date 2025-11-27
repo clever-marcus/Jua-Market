@@ -6,12 +6,14 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   query,
+  setDoc,
   where
 } from "firebase/firestore";
-import { Heart, Share2 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import { Heart, Share2, ShoppingCart } from "lucide-react-native";
+import React, { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -28,6 +30,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context"; // ✅ the right import
 import { t } from "react-native-tailwindcss";
+import Toast from "react-native-toast-message";
+
+import { ThemeContext } from "../../context/ThemeContext";
 
 
 
@@ -36,6 +41,24 @@ export default function Explore() {
   const [loading, setLoading] = useState(true);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const router = useRouter();
+
+  // Theme Context 
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === 'dark';
+
+  const colors = {
+    bgScreen: isDark ? t.bgBlack : t.bgWhite, // Main screen background
+    bgCard: isDark ? t.bgBlack : t.bgGray100, // Product card background
+
+    // Text Colors
+    textPrimary: isDark ? t.textWhite : t.textBlack, // Main text (titles, price)
+    textSecondary: isDark ? t.textGray400 : t.textGray700, // Secondary text (description)
+    textPlaceholder: isDark ? t.textGray600 : t.textGray500, // Placeholder/small text
+
+    // Borders
+    border: isDark ? t.borderGray700 : t.borderGray300,
+    icon: isDark ? t.textGray400 : t.textGray600,
+  }
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -60,6 +83,8 @@ export default function Explore() {
       console.error("Error sharing:", error)
     }
   }
+
+  
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -134,18 +159,86 @@ export default function Explore() {
     }
   };
 
+  const addToCart = async (product: any) => {
+    if (!user) {
+      Toast.show({
+        type: "error",
+        text1: "Please log in first",
+        text2: "You need to be logged in to add items to your cart.",
+      });
+      return;
+    }
+
+    try {
+      const cartItemRef = doc(
+        collection(db, "carts", user.uid, "items"),
+        product.id
+      );
+
+      const existing = await getDoc(cartItemRef);
+
+      if (existing.exists()) {
+        const existingQty = existing.data().quantity || 1;
+
+        await setDoc(cartItemRef, {
+          productId: product.id,
+          title: product.title,
+          price: product.price,
+          imageUrl: product.imageUrl,
+          quantity: existingQty + 1,
+        });
+
+        Toast.show({
+          type: "success",
+          text1: "🛒 Cart Updated",
+          text2: `${product.title} quantity increased.`,
+          visibilityTime: 3000,
+          position: "top",
+        });
+      } else {
+        await setDoc(cartItemRef, {
+          productId: product.id,
+          title: product.title,
+          price: product.price,
+          imageUrl: product.imageUrl,
+          quantity: 1,
+        });
+
+        Toast.show({
+          type: "success",
+          text1: "✅ Added to Cart",
+          text2: `${product.title} added successfully.`,
+          visibilityTime: 3000,
+          position: "top",
+        });
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      Toast.show({
+        type: "error",
+        text1: "Error adding item to cart",
+        text2: "Please try again later.",
+        visibilityTime: 2000,
+        position: "bottom",
+      });
+    }
+  };
+
+
+
+
   if (loading) {
     return (
-      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, t.bgWhite]}>
-        <ActivityIndicator size="large" color="black" />
-        <Text style={[t.textGray700, t.mT3]}>Loading amazing art...</Text>
+      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, colors.bgScreen]}>
+        <ActivityIndicator size="large" color={isDark ? "white" : "black"} />
+        <Text style={[colors.textSecondary, t.mT3]}>Loading amazing art...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter]} edges={["top"]}>
-      <Text style={[t.text2xl, t.fontBold, t.m4]}>Explore Products</Text>
+    <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter,  colors.bgScreen]} edges={["top"]}>
+      <Text style={[t.text2xl, t.fontBold, t.m4, colors.textPrimary, t.mB3, t.mT0]}>Explore Products</Text>
 
       <FlatList
         data={products}
@@ -156,7 +249,7 @@ export default function Explore() {
           <TouchableOpacity onPress={() => router.push(`/product/${item.id}`)}>
             <View
               style={[
-                t.bgGray100,
+                colors.bgCard,
                 t.roundedLg,
                 t.mB6,
                 t.shadow,
@@ -172,14 +265,14 @@ export default function Explore() {
               
 
               <View style={[t.p4]}>
-                <Text style={[t.fontBold, t.textLg]}>{item.title}</Text>
+                <Text style={[t.fontBold, t.textLg, colors.textPrimary]}>{item.title}</Text>
 
                 {item.description ? (
-                  <Text style={[t.textGray700, t.textSm, t.mT1]}>
+                  <Text style={[colors.textSecondary, t.textSm, t.mT1]}>
                     {item.description}
                   </Text>
                 ) : (
-                  <Text style={[t.textGray500, t.textXs, t.mT1]}>
+                  <Text style={[colors.textPlaceholder, t.textXs, t.mT1]}>
                     No description available
                   </Text>
                 )}
@@ -191,17 +284,26 @@ export default function Explore() {
                     t.itemsCenter,
                     t.mT3,
                     t.borderT,
-                    t.borderGray300,
+                    colors.border,
                     t.pT2,
                   ]}
                 >
                   {/* Left: Price */}
-                  <Text style={[t.textBlack, t.fontSemibold]}>
+                  <Text style={[colors.textPrimary, t.fontSemibold]}>
                     ${item.price?.toFixed ? item.price.toFixed(2) : item.price}
                   </Text>
 
                   {/* Right: Wishlist + Share */}
                   <View style={[t.flexRow, t.itemsCenter]}>
+                    {/* Add to Cart Button */}
+                    <TouchableOpacity
+                      onPress={() => addToCart(item)}
+                      style={[t.mR3]}
+                    >
+                      <ShoppingCart size={22} color={isDark ? "white" : "gray"} />
+
+                    </TouchableOpacity>
+
                     <TouchableOpacity 
                       onPress={() => {
                         animateHeart();
@@ -212,14 +314,14 @@ export default function Explore() {
                       <Animated.View style={heartStyle}>
                       <Heart
                         size={22}
-                        color={wishlist.includes(item.id) ? "red" : "gray"}
+                        color={wishlist.includes(item.id) ? "red" : (isDark ? "white" : "gray")}
                         fill={wishlist.includes(item.id) ? "red" : "none"}
                       />
                       </Animated.View>
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={() => openShareMenu(item)}>
-                      <Share2 size={22} color="gray" />
+                      <Share2 size={22} color={isDark ? "white" : "gray"} />
                     </TouchableOpacity>
                   </View>
                 </View>

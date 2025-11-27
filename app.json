@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Jua Market",
+    "name": "Jua Soko",
     "slug": "Jua-Market",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -27,6 +27,7 @@
       "resizeMode": "cover",
       "backgroundColor": "#1A1A1A"
       }
+
     },
     "web": {
       "output": "static",

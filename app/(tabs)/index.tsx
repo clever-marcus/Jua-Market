@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  ImageBackground,
-} from "react-native";
-import { t } from "react-native-tailwindcss";
+import { auth, db } from "@/constants/firebaseConfig";
 import { Link, useRouter } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, db } from "@/constants/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ImageBackground,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { t } from "react-native-tailwindcss";
 
 export default function Index() {
   const router = useRouter();
@@ -45,7 +45,13 @@ export default function Index() {
     <SafeAreaView style={[t.flex1 ]} edges={["top"]}>
       <ImageBackground
         source={require("../../assets/images/africart-bg.jpg")} // ← Add your image here
-        style={[t.flex1, t.justifyCenter, t.itemsCenter]}
+        style={[
+          t.absolute,
+          t.top0, 
+          t.bottom0,
+          t.left0,
+          t.right0,
+        ]}
         resizeMode="cover"
       >
         {/* Overlay for text visibility */}
@@ -65,6 +71,7 @@ export default function Index() {
               t.fontBold,
               t.mB4,
               t.textCenter,
+              t.mT20,
               { color: "white", textShadowColor: "rgba(0,0,0,0.3)", textShadowRadius: 4 },
             ]}
           >

@@ -1,13 +1,33 @@
-import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import React, { useContext } from "react";
+import { ThemeContext } from "../../context/ThemeContext";
 
 export default function TabLayout() {
+  //  Consume Context
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === "dark";
+
+  // Define dynamic colors
+  const colors = {
+    // Tab Bar Background
+    tabBarBackground: isDark ? "#000" : "white",
+    
+    // Icon Colors
+    tabBarActive: isDark ? "white" : "black",
+    tabBarInactive: isDark ? "#666" : "gray",
+  };
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "black",
-        tabBarStyle: { backgroundColor: "white" },
+        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarInactiveTintColor: colors.tabBarInactive,
+        tabBarStyle: { 
+          backgroundColor: colors.tabBarBackground,
+          borderTopColor: isDark ? "#333" : "#eee", 
+        },
       }}
     >
       <Tabs.Screen
@@ -46,7 +66,8 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      
+     {/* <Tabs.Screen
         name="upload"
         options={{
             title: "Upload",
@@ -54,8 +75,8 @@ export default function TabLayout() {
             <Ionicons name="add-circle-outline" color={color} size={size} />
             ),
         }}
-        />
-
+        />*/}
+        
     </Tabs>
   );
 }
