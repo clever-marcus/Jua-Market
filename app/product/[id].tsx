@@ -1,4 +1,5 @@
 import { db } from "@/constants/firebaseConfig";
+import { ThemeContext } from "@/context/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getAuth } from "firebase/auth";
@@ -14,18 +15,42 @@ import {
   where,
 } from "firebase/firestore";
 import { ArrowLeft, Heart, Share2 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   ScrollView,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { t } from "react-native-tailwindcss";
 import Toast from "react-native-toast-message";
+
+// Get screen width for carousel image dimensions
+const { width: screenWidth } = Dimensions.get("window"); 
+
+// Defining dynamic colors structure
+const getColors = (isDark: boolean) => ({
+  // Screen / Container Colors
+    bgScreen: isDark ? t.bgGray900 : t.bgWhite,
+    bgPrimary: isDark ? t.bgGray800 : t.bgWhite,
+    
+    // Text Colors
+    textPrimary: isDark ? t.textWhite : t.textBlack,
+    textSecondary: isDark ? t.textGray400 : t.textGray700,
+    textDisabled: isDark ? t.textGray600 : t.textGray700,
+    textLight: t.textGray400, // For seller ID, dates, etc.
+    
+    // Border Colors
+    border: isDark ? t.borderGray700 : t.borderGray300,
+
+    // Button Colors
+    bgAddCart: t.bgBlack, // Keep black for visibility
+    textAddCart: t.textWhite,
+});
 
 export default function ProductDetails() {
   const { id } = useLocalSearchParams();
@@ -37,7 +62,14 @@ export default function ProductDetails() {
   const { user } = useAuth();
   const auth = getAuth();
 
-  // 🔹 Fetch product details
+  // Consume Context
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === "dark";
+  const colors = getColors(isDark);
+
+  const [selectedImage, setSelectedImage] = useState(0);
+
+  // 🔹 Fetch product details (No change)
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -58,7 +90,7 @@ export default function ProductDetails() {
     fetchProduct();
   }, [id]);
 
-  // 🔹 Check if favorited
+  // 🔹 Check if favorited (No change)
   useEffect(() => {
     if (!user || !id) return;
     const checkFavorite = async () => {
@@ -81,7 +113,7 @@ export default function ProductDetails() {
     checkFavorite();
   }, [user, id]);
 
-  // 🔹 Add to cart
+  // 🔹 Add to cart (No change)
   const handleAddToCart = async () => {
     if (!user) {
       Toast.show({
@@ -117,7 +149,12 @@ export default function ProductDetails() {
           productId: product.id,
           title: product.title,
           price: product.price,
-          imageUrl: product.imageUrl,
+          imageUrl: 
+            Array.isArray(product.images)
+              ? product.images[0]
+              : Array.isArray(product.imageUrl)
+              ? product.imageUrl[0]
+              : product.imageUrl || null,
           quantity: 1,
         });
         Toast.show({
@@ -140,7 +177,7 @@ export default function ProductDetails() {
     }
   };
 
-  // 🔹 Toggle favorite
+  // 🔹 Toggle favorite (No change)
   const toggleFavorite = async () => {
     if (!user) {
       Toast.show({
@@ -171,28 +208,35 @@ export default function ProductDetails() {
     }
   };
 
-  // 🔹 Loading & fallback states
+  // 🔹 Loading & fallback states (No change)
   if (loading) {
     return (
-      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, t.bgWhite]}>
-        <ActivityIndicator size="large" color="black" />
-        <Text style={[t.textGray700, t.mT3]}>Loading artwork...</Text>
+      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, colors.bgScreen]}>
+        <ActivityIndicator size="large" color={colors.textPrimary.color} />
+        <Text style={[colors.textDisabled, t.mT3]}>Loading artwork...</Text>
       </SafeAreaView>
     );
   }
 
   if (!product) {
     return (
-      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, t.bgWhite]}>
-        <Text style={[t.textGray700]}>Product not found</Text>
+      <SafeAreaView style={[t.flex1, t.justifyCenter, t.itemsCenter, colors.bgScreen]}>
+        <Text style={[colors.textDisabled]}>Product not found</Text>
       </SafeAreaView>
     );
   }
 
+
+  const imagesArray = Array.isArray(product?.images)
+    ? product.images
+    : Array.isArray(product?.imageUrl)
+      ? product.imageUrl
+      : (product?.imageUrl ? [product.imageUrl] : []); // Fallback to single URL or empty array
+
   // 🔹 Main UI
   return (
-    <SafeAreaView style={[t.flex1, t.bgWhite]}>
-      {/* Back Button */}
+    <SafeAreaView style={[t.flex1, colors.bgScreen]}>
+
       <TouchableOpacity
         onPress={() => router.back()}
         style={[
@@ -205,29 +249,68 @@ export default function ProductDetails() {
           t.shadow,
         ]}
       >
-        <ArrowLeft size={28} color="gray" />
+       <ArrowLeft size={28} color={colors.textDisabled.color} />
       </TouchableOpacity>
+
 
       <ScrollView
         contentContainerStyle={[t.p4, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Image
-          source={{ uri: product.imageUrl }}
-          style={[{ width: "100%", height: 400, borderRadius: 12 }]}
+        <Image source={{ uri: imagesArray[selectedImage] }} 
+          style={{
+            width: screenWidth - 32,
+            height: 380,
+            borderRadius: 12,
+            alignSelf: "center",
+          }}
           resizeMode="cover"
         />
+        
+        {/* THUMBNAILS */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginTop: 15 }}
+          contentContainerStyle={[t.flexRow]}
+        >
+          {imagesArray.map((img: string, index: number) => {
+            const isActive = index === selectedImage;
 
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() => setSelectedImage(index)}
+                style={{ marginRight: 10 }}
+              >
+                <Image
+                  source={{ uri: img }}
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderRadius: 8,
+                    borderWidth: isActive ? 2 : 1,
+                    borderColor: isActive ? "#FF9900" : colors.border.borderColor,
+                  }}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+        
+        {/* START OF FIX: Removed extra newlines/whitespace between tags */}
         <View style={[t.flexRow, t.justifyBetween, t.itemsCenter, t.mT4]}>
-          <Text style={[t.text3xl, t.fontBold]}>{product.title}</Text>
+          <Text style={[t.text3xl, t.fontBold, colors.textPrimary]}>{product.title}</Text>
         </View>
 
-        <Text style={[t.textGray700, t.textBase, t.mT2]}>
+        <Text style={[colors.textSecondary, t.textBase, t.mT2]}>
           {product.description || "No description available."}
         </Text>
+        {/* END OF FIX */}
 
         <View style={[t.flexRow, t.justifyBetween, t.itemsCenter, t.mT4]}>
-          <Text style={[t.textBlack, t.fontSemibold, t.textLg]}>
+          <Text style={[colors.textPrimary, t.fontSemibold, t.textLg]}>
             ${product.price?.toFixed ? product.price.toFixed(2) : product.price}
           </Text>
 
@@ -235,34 +318,34 @@ export default function ProductDetails() {
             <TouchableOpacity onPress={toggleFavorite} style={[t.mR3]}>
               <Heart
                 size={28}
-                color={isFavorite ? "red" : "gray"}
+                color={isFavorite ? "red" : colors.textDisabled.color}
                 fill={isFavorite ? "red" : "none"}
               />
             </TouchableOpacity>
 
             <TouchableOpacity>
-              <Share2 size={24} color="gray" />
+              <Share2 size={24} color={colors.textDisabled.color} />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={[t.mT3]}>
-          <Text style={[t.textGray600, t.textSm]}>
+          <Text style={[colors.textLight, t.textSm]}>
             Seller ID: {product.sellerId}
           </Text>
           {product.createdAt && (
-            <Text style={[t.textGray500, t.textXs]}>
+            <Text style={[colors.textLight, t.textXs]}>
               Added on: {new Date(product.createdAt).toLocaleDateString()}
             </Text>
           )}
         </View>
       </ScrollView>
 
-      {/* Add to Cart Button */}
+
       <View style={[t.absolute, { bottom: 50 }, t.left0, t.right0, t.itemsCenter]}>
         <TouchableOpacity
           style={[
-            t.bgBlack,
+            colors.bgAddCart,
             t.roundedLg,
             t.pY3,
             t.w11_12,
@@ -272,7 +355,7 @@ export default function ProductDetails() {
           ]}
           onPress={handleAddToCart}
         >
-          <Text style={[t.textWhite, t.textLg, t.fontSemibold]}>
+          <Text style={[colors.textAddCart, t.textLg, t.fontSemibold]}>
             Add to Cart
           </Text>
         </TouchableOpacity>

@@ -1,10 +1,11 @@
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { auth } from "@/constants/firebaseConfig";
+import { validateEmail } from "@/utils/validateEmail"; // <-- ADDED
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import React, { useState } from "react";
-import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { t } from "react-native-tailwindcss";
 import Toast from "react-native-toast-message";
 
@@ -15,22 +16,38 @@ export default function Login() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email || !password) return Alert.alert("Error", "Please fill all fields.");
+    if (!email || !password) {
+      return Toast.show({
+        type: "error",
+        text1: "Missing Fields",
+        text2: "Please enter both email and password.",
+      });
+    }
+
+    if (!validateEmail(email)) {
+      return Toast.show({
+        type: "error",
+        text1: "Invalid Email",
+        text2: "Please enter a valid email address.",
+      });
+    }
+
     setLoading(true);
+
     try {
       await signInWithEmailAndPassword(auth, email, password);
+
       Toast.show({
         type: "success",
-        text1: "Logged in successfully ✅ ",
-        visibilityTime: 3000,
+        text1: "Logged in successfully ✅",
       });
-      router.replace("/(tabs)"); // redirect to home tab after login
+
+      router.replace("/(tabs)");
     } catch (error: any) {
       Toast.show({
         type: "error",
-        text1: "Login Failed ❌ ",
-        text2: "Please check credentials and try again.",
-        visibilityTime: 4000,
+        text1: "Login Failed ❌",
+        text2: "Please check your credentials.",
       });
     } finally {
       setLoading(false);
@@ -43,6 +60,14 @@ export default function Login() {
 
       <Input placeholder="Email" value={email} onChangeText={setEmail} />
       <Input placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+
+      {/* Forgot Password Link */}
+      <TouchableOpacity 
+        onPress={() => router.push("/auth/forgot-password")}
+        style={[t.mB4, t.mT2]}
+      >
+        <Text style={[t.textBlue500, t.textRight]}>Forgot Password?</Text>
+      </TouchableOpacity>
 
       <Button title={loading ? "Signing in..." : "Login"} onPress={handleLogin} />
 

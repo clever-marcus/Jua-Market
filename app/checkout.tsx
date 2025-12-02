@@ -417,7 +417,7 @@ export default function CheckoutPage() {
 
     try {
       // 1. Make the request
-      const res = await fetch("https://b117b2e95e46.ngrok-free.app/mpesa/stkpush", {
+      const res = await fetch("https://mpesa-api-qbi3.onrender.com", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -467,7 +467,7 @@ export default function CheckoutPage() {
 
 const handleStripe = async (orderId: string, amount: number) => {
   try {
-    const res = await fetch("https://b117b2e95e46.ngrok-free.app/stripe/create-intent", {
+    const res = await fetch("https://cac678af70af.ngrok-free.app/stripe/create-intent", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",

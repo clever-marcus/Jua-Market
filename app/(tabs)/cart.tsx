@@ -56,6 +56,7 @@ export default function CartScreen() {
       (snapshot) => {
         const items = snapshot.docs.map((doc) => ({
           id: doc.id,
+          // Ensure that the structure matches CartItem type
           ...(doc.data() as Omit<CartItem, "id">),
         }));
         setCartItems(items);
@@ -129,7 +130,7 @@ export default function CartScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, padding: 16 }}>
       <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 16, textAlign: "center", color: colors.text }}>
-        🛍️ Your Cart
+        Your Cart
       </Text>
 
       <FlatList
@@ -147,10 +148,27 @@ export default function CartScreen() {
               padding: 10,
             }}
           >
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={{ width: 70, height: 70, borderRadius: 10 }}
-            />
+            {/* ✅ FIX: Conditional rendering with a fallback placeholder */}
+            {typeof item.imageUrl === "string" && item.imageUrl.trim() !== "" ? (
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={{ width: 70, height: 70, borderRadius: 10 }}
+              />
+            ) : (
+              <View 
+                style={{ 
+                  width: 70, 
+                  height: 70, 
+                  borderRadius: 10, 
+                  backgroundColor: isDark ? "#333" : "#ccc", 
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>🖼️</Text>
+              </View>
+            )}
+            
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ fontWeight: "600", fontSize: 16, color: colors.text }}>{item.title}</Text>
               <Text style={{ color: colors.secondaryText }}>${item.price.toFixed(2)}</Text>

@@ -257,12 +257,10 @@ export default function Explore() {
               ]}
             >
               <Image
-                source={{ uri: item.imageUrl }}
+                source={{ uri: Array.isArray(item.imageUrl) ? item.imageUrl[0] : item.imageUrl }}
                 style={{ width: "100%", height: 300 }}
                 resizeMode="cover"
               />
-
-              
 
               <View style={[t.p4]}>
                 <Text style={[t.fontBold, t.textLg, colors.textPrimary]}>{item.title}</Text>
