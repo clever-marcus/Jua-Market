@@ -417,7 +417,7 @@ export default function CheckoutPage() {
 
     try {
       // 1. Make the request
-      const res = await fetch("https://cac678af70af.ngrok-free.app/mpesa/stkpush", {
+      const res = await fetch("https://5747fc54bb09.ngrok-free.app/mpesa/stkpush", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -463,44 +463,44 @@ export default function CheckoutPage() {
     console.error("Payment Exception:", e);
     alert("Payment failed: " + e.message);
   }
-};
+  };
 
-const handleStripe = async (orderId: string, amount: number) => {
-  try {
-    const res = await fetch("https://cac678af70af.ngrok-free.app/stripe/create-intent", {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true"
-      },
-      body: JSON.stringify({ orderId, amount }),
-    });
-    const data = await res.json();
-
-    if (!data.clientSecret) {
-      Toast.show({
-        type: "error",
-        text1: "Stripe Error ❌ ",
-        text2: "Could not start card payment.",
-        visibilityTime: 4000,
+  const handleStripe = async (orderId: string, amount: number) => {
+    try {
+      const res = await fetch("https://5747fc54bb09.ngrok-free.app/stripe/create-intent", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true"
+        },
+        body: JSON.stringify({ orderId, amount }),
       });
-      return;
-    }
+      const data = await res.json();
 
-    router.push({
-      pathname: "/payment/card-payment",
-      params: {
-        clientSecret: data.clientSecret,
-        orderId: orderId
+      if (!data.clientSecret) {
+        Toast.show({
+          type: "error",
+          text1: "Stripe Error ❌ ",
+          text2: "Could not start card payment.",
+          visibilityTime: 4000,
+        });
+        return;
       }
-    } as any);
+
+      router.push({
+        pathname: "/payment/card-payment",
+        params: {
+          clientSecret: data.clientSecret,
+          orderId: orderId
+        }
+      } as any);
 
 
-  } catch (err) {
-    console.log(err);
-    alert("Payment failed.");
-  }
-};
+    } catch (err) {
+      console.log(err);
+      alert("Payment failed.");
+    }
+  };
 
 
   const handleConfirmOrder = async () => {
