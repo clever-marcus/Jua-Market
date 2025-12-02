@@ -417,7 +417,7 @@ export default function CheckoutPage() {
 
     try {
       // 1. Make the request
-      const res = await fetch("https://mpesa-api-qbi3.onrender.com", {
+      const res = await fetch("https://cac678af70af.ngrok-free.app/mpesa/stkpush", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
